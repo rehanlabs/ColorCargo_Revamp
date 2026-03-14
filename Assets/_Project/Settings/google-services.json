@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "559438349882",
+    "project_id": "color-cargo-byte-battalion",
+    "storage_bucket": "color-cargo-byte-battalion.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:559438349882:android:a9c486d6c8fa2446251703",
+        "android_client_info": {
+          "package_name": "com.color.cargo.bytebattalion"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7QNpmiPavX6cGUJKgsPJfONt0V8g8q_M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
