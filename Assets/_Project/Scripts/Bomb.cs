@@ -21,48 +21,29 @@ public class Bomb : MonoBehaviour
         if (collision.gameObject.CompareTag("Train"))
         {
             // Check if the collided object has a Train component
-            Train train = collision.gameObject.GetComponent<Train>();
+            ColorCargo.Core.Train train = collision.gameObject.GetComponent<ColorCargo.Core.Train>();
             if (train != null)
             {
                 // Get the number of available cargos in the train
                 int availableCargos = train.GetNextAvailableCargoIndex();
 
-                // Call the Deactivatetwocargos function in the Train class
-                train.Deactivatetwocargos();
+                // Call the DeactivateTwoCargos function in the Train class
+                train.DeactivateTwoCargos();
 
                 // Check if the train has one or zero cargo
                 if (availableCargos <= 1)
                 {
-                    // Set the gameover panel active
-                    Time.timeScale = 0;
+                    ColorCargo.Managers.GameManager.Instance?.GameOver();
 
-                    AudioSource previousBackgroundMusic = GameObject.FindGameObjectWithTag("BGM").GetComponent<AudioSource>();
-                    if (previousBackgroundMusic != null)
-                    {
-                        previousBackgroundMusic.Stop();
-                    }
-
-
-                    AudioSource bgm2 = GameObject.FindGameObjectWithTag("BGM2").GetComponent<AudioSource>();
-                    if (bgm2 != null)
-                    {
-                        bgm2.Stop();
-                    }
-
-                    AudioSource bgm3 = GameObject.FindGameObjectWithTag("BGM3").GetComponent<AudioSource>();
-                    if (bgm3 != null)
-                    {
-                        bgm3.Stop();
-                    }
-
-                    // Play the new background music
                     if (newBackgroundMusic != null)
                     {
                         newBackgroundMusic.Play();
                     }
 
-
-                    gameoverpanel.SetActive(true);
+                    if (gameoverpanel != null)
+                    {
+                        gameoverpanel.SetActive(true);
+                    }
                 }
             }
 

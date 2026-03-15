@@ -1,193 +1,87 @@
 using UnityEngine;
+using ColorCargo.Data;
+using ColorCargo.Core;
+using ColorCargo.Managers;
 
-public class CargoContainer : MonoBehaviour
+namespace ColorCargo.Core
 {
-    public enum CargoColor { Red, Blue, Yellow, Green}
-
-    public bool enableRed = true;
-    public bool enableBlue = true;
-    public bool enableYellow = true;
-    public bool enableGreen = true;
-
-    public string customHexRed = "#FF3217"; // Custom hex color for Red
-    public string customHexBlue = "#0000FF"; // Custom hex color for Blue
-    public string customHexYellow = "#FFFF00"; // Custom hex color for Yellow
-    public string customHexGreen = "#00B406"; // Custom hex color for Yellow
-
-    public Color customEmissionRed = new Color(135f, 0f, 0f); // Custom emission color for Red (R=1, G=0, B=0)
-    public Color customEmissionBlue = new Color(0f, 0f, 1f); // Custom emission color for Blue (R=0, G=0, B=1)
-    public Color customEmissionYellow = new Color(1f, 1f, 0f); // Custom emission color for Yellow (R=1, G=1, B=0)
-    public Color customEmissionGreen = new Color(10f, 130f, 0f); // Custom emission color for Yellow (R=1, G=1, B=0)
-
-
-    public AudioSource newBackgroundMusic;
-
-
-    public float minMoveSpeed = 3f; // Minimum move speed for cargo containers
-    public float maxMoveSpeed = 7f;
-    private float currentMoveSpeed;
-
-
-    private CargoColor color;
-
-    public GameObject gameoverpanel;
-
-    private void Start()
+    public class CargoContainer : MonoBehaviour
     {
-        // Randomly assign a color to the cargo container based on enabled colors
-        SetRandomColorBasedOnEnabled();
+        [Header("Data Config")]
+        public TrainData[] possibleTrainData;
 
-        // Set the cube's color based on the cargo color
-        SetColorBasedOnCargo();
+        [Header("Settings")]
+        public float minMoveSpeed = 3f;
+        public float maxMoveSpeed = 7f;
+        public GameObject gameOverPanel;
+        public AudioSource gameOverBGM;
 
-        // Set the initial move speed randomly within the specified range
-        currentMoveSpeed = Random.Range(minMoveSpeed, maxMoveSpeed);
+        private TrainData _currentData;
+        private float _currentMoveSpeed;
+        private Renderer _renderer;
 
-        gameoverpanel.SetActive(false);
-    }
-
-    private void SetRandomColorBasedOnEnabled()
-    {
-        bool[] enabledColors = { enableRed, enableBlue, enableYellow, enableGreen };
-        int enabledCount = 0;
-        foreach (bool enabled in enabledColors)
+        private void Awake()
         {
-            if (enabled)
+            _renderer = GetComponent<Renderer>();
+        }
+
+        private void Start()
+        {
+            InitializeCargo();
+        }
+
+        private void InitializeCargo()
+        {
+            if (possibleTrainData != null && possibleTrainData.Length > 0)
             {
-                enabledCount++;
+                _currentData = possibleTrainData[Random.Range(0, possibleTrainData.Length)];
+                ApplyVisuals();
+            }
+
+            _currentMoveSpeed = Random.Range(minMoveSpeed, maxMoveSpeed);
+            if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        }
+
+        private void ApplyVisuals()
+        {
+            if (_currentData == null) return;
+
+            if (ColorUtility.TryParseHtmlString(_currentData.hexColor, out Color color))
+            {
+                _renderer.material.color = color;
+                _renderer.material.SetColor("_EmissionColor", _currentData.emissionColor);
             }
         }
 
-        int randomIndex = Random.Range(0, enabledCount);
-
-        int currentIndex = 0;
-        for (int i = 0; i < enabledColors.Length; i++)
+        private void Update()
         {
-            if (enabledColors[i])
+            transform.Translate(Vector3.back * _currentMoveSpeed * Time.deltaTime);
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (collision.gameObject.CompareTag("Train"))
             {
-                if (currentIndex == randomIndex)
+                Train train = collision.gameObject.GetComponent<Train>();
+                if (train != null)
                 {
-                    color = (CargoColor)i;
-                    break;
+                    HandleTrainCollision(train);
                 }
-                currentIndex++;
-            }
-        }
-    }
-
-    private void SetColorBasedOnCargo()
-    {
-        Renderer cubeRenderer = GetComponent<Renderer>();
-        Material[] materials = cubeRenderer.materials; // Get all materials
-
-        foreach (Material material in materials)
-        {
-            switch (color)
-            {
-                case CargoColor.Red:
-                    ColorUtility.TryParseHtmlString(customHexRed, out Color redColor);
-                    material.color = redColor;
-                    material.SetColor("_EmissionColor", customEmissionRed);
-                    break;
-                case CargoColor.Blue:
-                    ColorUtility.TryParseHtmlString(customHexBlue, out Color blueColor);
-                    material.color = blueColor;
-                    material.SetColor("_EmissionColor", customEmissionBlue);
-                    break;
-                case CargoColor.Yellow:
-                    ColorUtility.TryParseHtmlString(customHexYellow, out Color yellowColor);
-                    material.color = yellowColor;
-                    material.SetColor("_EmissionColor", customEmissionYellow);
-                    break;
-                case CargoColor.Green:
-                    ColorUtility.TryParseHtmlString(customHexGreen, out Color greenColor);
-                    material.color = greenColor;
-                    material.SetColor("_EmissionColor", customEmissionGreen);
-                    break;
+                Destroy(gameObject);
             }
         }
 
-        cubeRenderer.materials = materials; // Update the materials array
-    }
-
-    private void Update()
-    {
-        // Move the cargo container vertically along the tracks
-        transform.Translate(Vector3.back * currentMoveSpeed * Time.deltaTime);
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        // Check if the cube collides with a train
-        if (collision.gameObject.CompareTag("Train"))
+        private void HandleTrainCollision(Train train)
         {
-            // Get the name of the collided train
-            string trainName = collision.gameObject.name;
-
-            // Get a reference to the Train script
-            Train train = collision.gameObject.GetComponent<Train>();
-
-            // Check the color of the cube and call ActivateNextCargo on the corresponding train
-            switch (color)
+            if (train.GetColor() == _currentData.color)
             {
-                case CargoColor.Red:
-                    if (enableRed && trainName == "Red")
-                    {
-                        train.ActivateNextCargo();
-                    }
-                    break;
-                case CargoColor.Blue:
-                    if (enableBlue && trainName == "Blue")
-                    {
-                        train.ActivateNextCargo();
-                    }
-                    break;
-                case CargoColor.Yellow:
-                    if (enableYellow && trainName == "Yellow")
-                    {
-                        train.ActivateNextCargo();
-                    }
-                    break;
-                case CargoColor.Green:
-                    if (enableGreen && trainName == "Green")
-                    {
-                        train.ActivateNextCargo();
-                    }
-                    break;
+                train.ActivateNextCargo();
             }
-
-            // Check if the color of the cube does not match the color of the train
-            if (train.trainColor != color)
+            else
             {
-                // Check if the train has cargo
                 if (train.GetNextAvailableCargoIndex() == 0)
                 {
-                    Time.timeScale = 0;
-                    AudioSource previousBackgroundMusic = GameObject.FindGameObjectWithTag("BGM").GetComponent<AudioSource>();
-                    if (previousBackgroundMusic != null)
-                    {
-                        previousBackgroundMusic.Stop();
-                    }
-
-                    AudioSource bgm2 = GameObject.FindGameObjectWithTag("BGM2").GetComponent<AudioSource>();
-                    if (bgm2 != null)
-                    {
-                        bgm2.Stop();
-                    }
-
-                    AudioSource bgm3 = GameObject.FindGameObjectWithTag("BGM3").GetComponent<AudioSource>();
-                    if (bgm3 != null)
-                    {
-                        bgm3.Stop();
-                    }
-
-                    // Play the new background music
-                    if (newBackgroundMusic != null)
-                    {
-                        newBackgroundMusic.Play();
-                    }
-
-                    gameoverpanel.SetActive(true);
+                    TriggerGameOver();
                 }
                 else
                 {
@@ -196,9 +90,12 @@ public class CargoContainer : MonoBehaviour
             }
         }
 
-        // Destroy the cube after the collision
-        Destroy(gameObject);
+        private void TriggerGameOver()
+        {
+            GameManager.Instance?.GameOver();
+
+            if (gameOverBGM != null) gameOverBGM.Play();
+            if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        }
     }
-
 }
-

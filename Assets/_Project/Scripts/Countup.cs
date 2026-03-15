@@ -10,10 +10,6 @@ public class Countup : MonoBehaviour
     public Text guiText;
     public Text guiText2;
     public string nextLevel;
-    public WinManager1 winM1;
-    public WinManager winM;
-    public WinManager4 winM4;
-    public WinManager5 winM5;
 
 
 
@@ -170,38 +166,10 @@ public class Countup : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (nextLevel == "Level-10" || nextLevel == "Level-11" || nextLevel == "Level-12")
-        {
-            if (!winM5.timestop)
-            {
-                Timer += Time.deltaTime;
-                int seconds = ((int)Timer);
-                guiText.text = "" + seconds;
-            }
-        }
-        else if (nextLevel == "Level-7" || nextLevel == "Level-8" || nextLevel == "Level-9")
-        {
-            if (!winM4.timestop)
-            {
-                Timer += Time.deltaTime;
-                int seconds = ((int)Timer);
-                guiText.text = "" + seconds;
-            }
-        }
-        else if (nextLevel == "Level-2" || nextLevel == "Level-3" || nextLevel == "Level-4" || nextLevel == "Level-5" || nextLevel == "Level-6")
-        {
-            if (!winM.timestop)
-            {
-                Timer += Time.deltaTime;
-                int seconds = ((int)Timer);
-                guiText.text = "" + seconds;
-            }
-        }
-        else if (!winM1.timestop)
-        {
-            Timer += Time.deltaTime;
-            int seconds = ((int)Timer);
-            guiText.text = "" + seconds;
-        }
+        if (ColorCargo.Managers.GameManager.Instance != null && ColorCargo.Managers.GameManager.Instance.IsLevelWon) return;
+
+        Timer += Time.deltaTime;
+        int seconds = ((int)Timer);
+        guiText.text = "" + seconds;
     }
 }

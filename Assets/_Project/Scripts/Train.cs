@@ -1,597 +1,226 @@
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using ColorCargo.Data;
 
-public class Train : MonoBehaviour
+namespace ColorCargo.Core
 {
-    public CargoContainer.CargoColor trainColor;
-    public GameObject[] cargoContainers; // Array to hold references to the cargo containers
-
-    public int activateThreshold = 5;
-    public GameObject spawnerB;
-    public GameObject additionalObject1; // Reference to the first additional GameObject to activate
-    public GameObject additionalObject2;
-    public GameObject additionalObject3;
-    public GameObject objectToDeactivate;
-    private bool movementStarted = false;
-    private bool additionalObjectsActivated = false; // Flag to track if additional objects are activated
-    private float timer = 0f;
-    public float delayTime = 5f;
-    public float movementSpeed = 0.3f;
-
-    public GameObject objectToActivate;
-
-
-    public AudioSource cargoActivationSound;
-    public AudioSource cargoDeactivationSound;
-    public AudioSource cargoBDeactivationSound;
-    public AudioSource TrainSound;
-    public AudioSource HornSound;
-
-    public ParticleSystem cargoDeactivationParticlePrefab;
-    public GameObject explosionParticlePrefab;
-    public ParticleSystem cargoActivationParticlePrefab;
-
-
-
-    private int nextAvailableCargoIndex = 0;
-
-    public TrackM trackScript;
-    public TrackM trackScriptR;
-    public TrackM trackScriptL;
-    public TrackM trackScriptRR;
-
-    public TrackL LtrackScript;
-    public TrackL LtrackScriptR;
-    public TrackL LtrackScriptL;
-    public TrackL LtrackScriptRR;
-
-    public TrackLL LLtrackScript;
-    public TrackLL LLtrackScriptR;
-    public TrackLL LLtrackScriptL;
-    public TrackLL LLtrackScriptRR;
-
-    public TrackRR RRtrackScript;
-    public TrackRR RRtrackScriptR;
-    public TrackRR RRtrackScriptL;
-    public TrackRR RRtrackScriptRR;
-
-    private void Start()
+    public class Train : MonoBehaviour
     {
-        // Deactivate all cargo containers initially
-        foreach (var container in cargoContainers)
+        [Header("Data Config")]
+        public TrainData trainData;
+
+        [Header("Gameplay Settings")]
+        public int activateThreshold = 5;
+        public float movementSpeed = 0.3f;
+        public float delayTime = 5f;
+
+        [Header("References")]
+        public GameObject[] cargoContainers;
+        public GameObject spawnerB;
+        public GameObject objectToActivate;
+        public GameObject objectToDeactivate;
+        public GameObject[] additionalObjectsToActivate;
+
+        [Header("Audio")]
+        public AudioSource cargoActivationSound;
+        public AudioSource cargoDeactivationSound;
+        public AudioSource cargoBDeactivationSound;
+        public AudioSource trainSound;
+        public AudioSource hornSound;
+
+        [Header("VFX")]
+        public ParticleSystem cargoActivationParticlePrefab;
+        public ParticleSystem cargoDeactivationParticlePrefab;
+        public GameObject explosionParticlePrefab;
+
+        [Header("Optimization")]
+        public float raycastInterval = 0.1f;
+        public LayerMask trackLayer;
+
+        private int _nextAvailableCargoIndex = 0;
+        private bool _movementStarted = false;
+        private bool _additionalObjectsActivated = false;
+        private BoxCollider _boxCollider;
+        private ITrack _currentTrack;
+
+        public System.Action<Train> OnMovementStarted;
+
+        private void Awake()
         {
-            container.SetActive(false);
-        }
-    }
-
-
-    
-
-
-    private void Update()
-    {
-        // Raycasting from the train's position
-        Ray ray = new Ray(transform.position, Vector3.forward);
-        RaycastHit hit;
-
-        if (trackScript != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("Track"))
-                {
-                    trackScript.SetRaycastHit(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    trackScript.SetRaycastHit(false);
-                }
-            }
-            else
-            {
-                trackScript.SetRaycastHit(false);
-
-            }
-        }
-
-        if (trackScriptR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackR"))
-                {
-                    trackScriptR.SetRaycastHit(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    trackScriptR.SetRaycastHit(false);
-                }
-            }
-            else
-            {
-                trackScriptR.SetRaycastHit(false);
-            }
+            _boxCollider = GetComponent<BoxCollider>();
         }
 
-        if (trackScriptL != null)
+        private void Start()
         {
-            if (Physics.Raycast(ray, out hit))
+            // Deactivate all cargo containers initially
+            foreach (var container in cargoContainers)
             {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackL"))
-                {
-                    trackScriptL.SetRaycastHit(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    trackScriptL.SetRaycastHit(false);
-                }
+                if (container != null) container.SetActive(false);
             }
-            else
-            {
-                trackScriptL.SetRaycastHit(false);
-            }
+
+            StartCoroutine(TrackDetectionRoutine());
         }
 
-        if (trackScriptRR != null)
+        private IEnumerator TrackDetectionRoutine()
         {
-            if (Physics.Raycast(ray, out hit))
+            WaitForSeconds wait = new WaitForSeconds(raycastInterval);
+            while (true)
             {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackRR"))
+                Ray ray = new Ray(transform.position, transform.forward);
+                if (Physics.Raycast(ray, out RaycastHit hit, 10f, trackLayer))
                 {
-                    trackScriptRR.SetRaycastHit(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    trackScriptRR.SetRaycastHit(false);
-                }
-            }
-            else
-            {
-                trackScriptRR.SetRaycastHit(false);
-            }
-        }
-
-
-        if (LtrackScript != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("Track"))
-                {
-                    LtrackScript.SetRaycastHitL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LtrackScript.SetRaycastHitL(false);
-                }
-            }
-            else
-            {
-                LtrackScript.SetRaycastHitL(false);
-
-            }
-        }
-
-        if (LtrackScriptR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackR"))
-                {
-                    LtrackScriptR.SetRaycastHitL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LtrackScriptR.SetRaycastHitL(false);
-                }
-            }
-            else
-            {
-                LtrackScriptR.SetRaycastHitL(false);
-            }
-        }
-
-        if (LtrackScriptL != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackL"))
-                {
-                    LtrackScriptL.SetRaycastHitL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LtrackScriptL.SetRaycastHitL(false);
-                }
-            }
-            else
-            {
-                LtrackScriptL.SetRaycastHitL(false);
-            }
-        }
-
-        if (LtrackScriptRR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackRR"))
-                {
-                    LtrackScriptRR.SetRaycastHitL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LtrackScriptRR.SetRaycastHitL(false);
-                }
-            }
-            else
-            {
-                LtrackScriptRR.SetRaycastHitL(false);
-            }
-        }
-
-
-
-
-        if (RRtrackScript != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("Track"))
-                {
-                    RRtrackScript.SetRaycastHitR(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    RRtrackScript.SetRaycastHitR(false);
-                }
-            }
-            else
-            {
-                RRtrackScript.SetRaycastHitR(false);
-
-            }
-        }
-
-        if (RRtrackScriptR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackR"))
-                {
-                    RRtrackScriptR.SetRaycastHitR(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    RRtrackScriptR.SetRaycastHitR(false);
-                }
-            }
-            else
-            {
-                RRtrackScriptR.SetRaycastHitR(false);
-            }
-        }
-
-        if (RRtrackScriptL != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackL"))
-                {
-                    RRtrackScriptL.SetRaycastHitR(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    RRtrackScriptL.SetRaycastHitR(false);
-                }
-            }
-            else
-            {
-                RRtrackScriptL.SetRaycastHitR(false);
-            }
-        }
-
-        if (RRtrackScriptRR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackRR"))
-                {
-                    RRtrackScriptRR.SetRaycastHitR(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    RRtrackScriptRR.SetRaycastHitR(false);
-                }
-            }
-            else
-            {
-                RRtrackScriptRR.SetRaycastHitR(false);
-            }
-        }
-
-
-
-
-        if (LLtrackScript != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("Track"))
-                {
-                    LLtrackScript.SetRaycastHitLL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LLtrackScript.SetRaycastHitLL(false);
-                }
-            }
-            else
-            {
-                LLtrackScript.SetRaycastHitLL(false);
-
-            }
-        }
-
-        if (LLtrackScriptR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackR"))
-                {
-                    LLtrackScriptR.SetRaycastHitLL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LLtrackScriptR.SetRaycastHitLL(false);
-                }
-            }
-            else
-            {
-                LLtrackScriptR.SetRaycastHitLL(false);
-            }
-        }
-
-        if (LLtrackScriptL != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackL"))
-                {
-                    LLtrackScriptL.SetRaycastHitLL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LLtrackScriptL.SetRaycastHitLL(false);
-                }
-            }
-            else
-            {
-                LLtrackScriptL.SetRaycastHitLL(false);
-            }
-        }
-
-        if (LLtrackScriptRR != null)
-        {
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the ray hit a track object
-                if (hit.transform.CompareTag("TrackRR"))
-                {
-                    LLtrackScriptRR.SetRaycastHitLL(true); // Call the SetRaycastHit method in the Track script
-                }
-                else
-                {
-                    LLtrackScriptRR.SetRaycastHitLL(false);
-                }
-            }
-            else
-            {
-                LLtrackScriptRR.SetRaycastHitLL(false);
-            }
-        }
-
-
-
-
-
-
-
-        // Check if the activation threshold is reached
-        if (nextAvailableCargoIndex >= activateThreshold)
-        {
-
-            if (!movementStarted)
-            {
-                // Disable collision detection if movement starts
-                GetComponent<BoxCollider>().enabled = false;
-                movementStarted = true;
-                if (HornSound != null)
-                {
-                    HornSound.Play();
-                }
-                if (TrainSound != null)
-                {
-                    TrainSound.Play();
-                }
-
-                if (objectToActivate != null)
-                {
-                    objectToActivate.SetActive(true);
-                }
-            }
-            // Move the train forward
-            transform.Translate(Vector3.forward * movementSpeed * Time.deltaTime);
-
-
-
-
-            // Activate the "Spawner B" GameObject if it's set
-            if (spawnerB != null)
-            {
-                spawnerB.SetActive(true);
-            }
-
-            // Deactivate the specified GameObject if it's set
-            if (objectToDeactivate != null)
-            {
-                objectToDeactivate.SetActive(false);
-            }
-
-            // Activate additional objects after the delay time
-            if (!additionalObjectsActivated)
-            {
-                timer += Time.deltaTime;
-                if (timer >= delayTime)
-                {
-                    if (additionalObject1 != null)
+                    ITrack track = hit.transform.GetComponent<ITrack>();
+                    if (track != null)
                     {
-                        additionalObject1.SetActive(true);
+                        if (_currentTrack != track)
+                        {
+                            _currentTrack?.SetOccupied(false);
+                            _currentTrack = track;
+                            _currentTrack.SetOccupied(true);
+                        }
                     }
-                    if (additionalObject2 != null)
+                    else
                     {
-                        additionalObject2.SetActive(true);
+                        ClearTrack();
                     }
-                    if (additionalObject3 != null)
+                }
+                else
+                {
+                    ClearTrack();
+                }
+                yield return wait;
+            }
+        }
+
+        private void ClearTrack()
+        {
+            if (_currentTrack != null)
+            {
+                _currentTrack.SetOccupied(false);
+                _currentTrack = null;
+            }
+        }
+
+        private void Update()
+        {
+            if (_movementStarted)
+            {
+                transform.Translate(Vector3.forward * movementSpeed * Time.deltaTime);
+                HandleAdditionalActivation();
+            }
+            else if (_nextAvailableCargoIndex >= activateThreshold)
+            {
+                StartMovement();
+            }
+        }
+
+        private void StartMovement()
+        {
+            _movementStarted = true;
+            _boxCollider.enabled = false;
+
+            if (hornSound != null) hornSound.Play();
+            if (trainSound != null) trainSound.Play();
+            if (objectToActivate != null) objectToActivate.SetActive(true);
+            if (spawnerB != null) spawnerB.SetActive(true);
+            if (objectToDeactivate != null) objectToDeactivate.SetActive(false);
+
+            OnMovementStarted?.Invoke(this);
+        }
+
+        private float _timer = 0f;
+        private void HandleAdditionalActivation()
+        {
+            if (!_additionalObjectsActivated)
+            {
+                _timer += Time.deltaTime;
+                if (_timer >= delayTime)
+                {
+                    foreach (var obj in additionalObjectsToActivate)
                     {
-                        additionalObject3.SetActive(true);
+                        if (obj != null) obj.SetActive(true);
                     }
-                    additionalObjectsActivated = true; // Set the flag to prevent repeated activation
+                    _additionalObjectsActivated = true;
                 }
             }
         }
-    }
 
-    public int GetNextAvailableCargoIndex()
-    {
-        return nextAvailableCargoIndex;
-    }
-
-    public bool IsMovementStarted()
-    {
-        return movementStarted;
-    }
-
-
-    public void ActivateNextCargo()
-    {
-        // Check if there are available cargo containers
-        if (nextAvailableCargoIndex < cargoContainers.Length)
+        public void ActivateNextCargo()
         {
-            // Activate the next available cargo container
-            cargoContainers[nextAvailableCargoIndex].SetActive(true);
-            nextAvailableCargoIndex++;
-
-            // Adjust the size of the box collider when a new container is added
-            BoxCollider boxCollider = GetComponent<BoxCollider>();
-            Vector3 colliderSize = boxCollider.size;
-            colliderSize.z += 0.07f;
-            boxCollider.size = colliderSize;
-
-            Vector3 colliderCenter = boxCollider.center;
-            colliderCenter.z -= 0.035f;
-            boxCollider.center = colliderCenter;
-
-            if (cargoActivationSound != null)
+            if (_nextAvailableCargoIndex < cargoContainers.Length)
             {
-                cargoActivationSound.Play();
+                cargoContainers[_nextAvailableCargoIndex].SetActive(true);
+
+                GameObject particlePrefab = cargoActivationParticlePrefab != null ? cargoActivationParticlePrefab.gameObject : (trainData != null ? trainData.activationParticlePrefab : null);
+                if (particlePrefab != null)
+                {
+                    Vector3 particlePosition = cargoContainers[_nextAvailableCargoIndex].transform.position;
+                    particlePosition.z -= 0.62f;
+                    Instantiate(particlePrefab, particlePosition, Quaternion.identity);
+                }
+
+                _nextAvailableCargoIndex++;
+                AdjustCollider(0.07f, -0.035f);
+
+                AudioSource sound = cargoActivationSound != null ? cargoActivationSound : null; // Logic for sound from trainData could be added if AudioSource is not needed
+                if (sound != null) sound.Play();
+                else if (trainData != null && trainData.activationSound != null) AudioSource.PlayClipAtPoint(trainData.activationSound, transform.position);
             }
-
-            if (cargoActivationParticlePrefab != null)
-            {
-                Vector3 particlePosition = cargoContainers[nextAvailableCargoIndex].transform.position;
-                particlePosition.z -= 0.62f; // Decrease the Z component
-                Instantiate(cargoActivationParticlePrefab, particlePosition, Quaternion.identity);
-            }
-
-
         }
-    }
 
-
-    public void DeactivateOneCargo()
-    {
-        // Check if there are available cargo containers to deactivate
-        if (nextAvailableCargoIndex > 0)
+        public void DeactivateOneCargo()
         {
-            // Deactivate the last activated cargo container
-            nextAvailableCargoIndex--;
-            cargoContainers[nextAvailableCargoIndex].SetActive(false);
-
-            // Adjust the size of the box collider when a container is deactivated
-            BoxCollider boxCollider = GetComponent<BoxCollider>();
-            Vector3 colliderSize = boxCollider.size;
-            colliderSize.z -= 0.07f;
-            boxCollider.size = colliderSize;
-
-            Vector3 colliderCenter = boxCollider.center;
-            colliderCenter.z += 0.035f;
-            boxCollider.center = colliderCenter;
-
-            if (cargoDeactivationSound != null)
+            if (_nextAvailableCargoIndex > 0)
             {
-                cargoDeactivationSound.Play();
-            }
+                _nextAvailableCargoIndex--;
+                cargoContainers[_nextAvailableCargoIndex].SetActive(false);
+                AdjustCollider(-0.07f, 0.035f);
 
-            // Instantiate the cargo deactivation particle effect at the deactivated cargo's position
-            if (cargoDeactivationParticlePrefab != null)
-            {
-                Instantiate(cargoDeactivationParticlePrefab, cargoContainers[nextAvailableCargoIndex].transform.position, Quaternion.identity);
-            }
+                GameObject particlePrefab = cargoDeactivationParticlePrefab != null ? cargoDeactivationParticlePrefab.gameObject : (trainData != null ? trainData.deactivationParticlePrefab : null);
+                if (particlePrefab != null)
+                {
+                    Instantiate(particlePrefab, cargoContainers[_nextAvailableCargoIndex].transform.position, Quaternion.identity);
+                }
 
+                if (cargoDeactivationSound != null) cargoDeactivationSound.Play();
+                else if (trainData != null && trainData.deactivationSound != null) AudioSource.PlayClipAtPoint(trainData.deactivationSound, transform.position);
+            }
         }
-    }
 
-
-    public void Deactivatetwocargos()
-    {
-        // Check if there are any available cargo containers to deactivate
-        if (nextAvailableCargoIndex > 0)
+        public void DeactivateTwoCargos()
         {
-            int containersToDeactivate = Mathf.Min(2, nextAvailableCargoIndex); // Calculate how many containers to deactivate
-
-            // Deactivate the specified number of cargo containers
-            for (int i = 0; i < containersToDeactivate; i++)
+            int toDeactivate = Mathf.Min(2, _nextAvailableCargoIndex);
+            for (int i = 0; i < toDeactivate; i++)
             {
-                nextAvailableCargoIndex--;
-                cargoContainers[nextAvailableCargoIndex].SetActive(false);
+                _nextAvailableCargoIndex--;
+                cargoContainers[_nextAvailableCargoIndex].SetActive(false);
             }
 
-            // Adjust the size of the box collider when containers are deactivated
-            BoxCollider boxCollider = GetComponent<BoxCollider>();
-            Vector3 colliderSize = boxCollider.size;
-            colliderSize.z -= 0.07f * containersToDeactivate;
-            boxCollider.size = colliderSize;
-
-            Vector3 colliderCenter = boxCollider.center;
-            colliderCenter.z += 0.035f * containersToDeactivate;
-            boxCollider.center = colliderCenter;
-
-            if (cargoBDeactivationSound != null)
+            if (toDeactivate > 0)
             {
-                cargoBDeactivationSound.Play();
+                AdjustCollider(-0.07f * toDeactivate, 0.035f * toDeactivate);
+                if (cargoBDeactivationSound != null) cargoBDeactivationSound.Play();
+                if (explosionParticlePrefab != null)
+                {
+                    Instantiate(explosionParticlePrefab, cargoContainers[_nextAvailableCargoIndex].transform.position, Quaternion.identity);
+                }
             }
-
-            if (explosionParticlePrefab != null)
-            {
-                Instantiate(explosionParticlePrefab, cargoContainers[nextAvailableCargoIndex].transform.position, Quaternion.identity);
-            }
-
         }
+
+        private void AdjustCollider(float sizeZ, float centerZ)
+        {
+            Vector3 size = _boxCollider.size;
+            size.z += sizeZ;
+            _boxCollider.size = size;
+
+            Vector3 center = _boxCollider.center;
+            center.z += centerZ;
+            _boxCollider.center = center;
+        }
+
+        public int GetNextAvailableCargoIndex() => _nextAvailableCargoIndex;
+        public bool IsMovementStarted() => _movementStarted;
+        public CargoColor GetColor() => trainData != null ? trainData.color : CargoColor.Red;
     }
-
-
 }
