@@ -17,6 +17,7 @@ namespace ColorCargo.Managers
 
         [Header("UI References")]
         public GameObject levelWinPanel;
+        public GameObject gameOverPanel;
         public Text timerText;
         public Text bestTimeText;
 
@@ -130,7 +131,9 @@ namespace ColorCargo.Managers
             if (_isGameOver) return;
             _isGameOver = true;
             Time.timeScale = 0;
-            // Handle GameOver UI etc.
+
+            StopAllBGM();
+            if (gameOverPanel != null) gameOverPanel.SetActive(true);
         }
     }
 }

@@ -2,7 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Bomb : MonoBehaviour
+namespace ColorCargo.Core
+{
+    public class Bomb : MonoBehaviour
 {
     public float moveSpeed = 5f;
     public GameObject gameoverpanel; // Reference to the gameover panel
@@ -33,16 +35,16 @@ public class Bomb : MonoBehaviour
                 // Check if the train has one or zero cargo
                 if (availableCargos <= 1)
                 {
-                    ColorCargo.Managers.GameManager.Instance?.GameOver();
-
-                    if (newBackgroundMusic != null)
+                    if (ColorCargo.Managers.GameManager.Instance != null)
                     {
-                        newBackgroundMusic.Play();
+                        ColorCargo.Managers.GameManager.Instance.GameOver();
+                        if (newBackgroundMusic != null) newBackgroundMusic.Play();
                     }
-
-                    if (gameoverpanel != null)
+                    else
                     {
-                        gameoverpanel.SetActive(true);
+                        Time.timeScale = 0;
+                        if (newBackgroundMusic != null) newBackgroundMusic.Play();
+                        if (gameoverpanel != null) gameoverpanel.SetActive(true);
                     }
                 }
             }
@@ -51,4 +53,5 @@ public class Bomb : MonoBehaviour
             Destroy(gameObject);
         }
     }
+}
 }

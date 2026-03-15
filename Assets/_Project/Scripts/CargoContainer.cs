@@ -92,10 +92,17 @@ namespace ColorCargo.Core
 
         private void TriggerGameOver()
         {
-            GameManager.Instance?.GameOver();
-
-            if (gameOverBGM != null) gameOverBGM.Play();
-            if (gameOverPanel != null) gameOverPanel.SetActive(true);
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.GameOver();
+                if (gameOverBGM != null) gameOverBGM.Play();
+            }
+            else
+            {
+                Time.timeScale = 0;
+                if (gameOverBGM != null) gameOverBGM.Play();
+                if (gameOverPanel != null) gameOverPanel.SetActive(true);
+            }
         }
     }
 }
